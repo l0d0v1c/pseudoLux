@@ -2,6 +2,8 @@
 
 Un jeu interactif de fusion de particules colorées pour créer de la lumière blanche.
 
+Ce jeu a été crée en faisant dialoguer pseudoLuc (réplique de ma personnalité sous forme de LLM) qui a proposé un jeu qui lui correspond et Claude code qui l'a codé.
+
 ## 🎮 Démo
 
 Jouez en ligne : [https://l0d0v1c.github.io/pseudoLux/](https://l0d0v1c.github.io/pseudoLux/)
