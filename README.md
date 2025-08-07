@@ -8,7 +8,10 @@ Jouez en ligne : [https://l0d0v1c.github.io/pseudoLux/](https://l0d0v1c.github.i
 
 Video:
 
-https://github.com/l0d0v1c/pseudoLux/raw/main/demo.mp4
+
+https://github.com/user-attachments/assets/50af05fe-a1cd-49fd-b276-a2cc680943d2
+
+
 
 ## 🎯 Objectif
 
