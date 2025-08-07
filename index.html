@@ -350,7 +350,7 @@
                 this.vx = (Math.random() - 0.5) * 0.5;
                 this.vy = (Math.random() - 0.5) * 0.5;
                 
-                this.density = options.density || 0.5; // All particles start same density
+                this.density = options.density || (0.1 + Math.random() * 0.4); // Random density 0.1-0.5
                 this.charge = options.charge || (Math.random() - 0.5) * 2;
                 this.potential = options.potential || Math.random();
                 
@@ -570,7 +570,12 @@
                                     Math.abs(this.charge - other.charge) + 
                                     Math.abs(this.potential - other.potential);
                     
-                    if (similarity < 0.8 && Math.random() < fusionProbability) {
+                    // Make fusion much more selective - particles need similar sizes
+                    const sizeDifference = Math.abs(this.density - other.density);
+                    const sizeCompatibility = Math.max(0, 1 - sizeDifference * 3); // Penalty for size mismatch
+                    const adjustedFusionProb = fusionProbability * sizeCompatibility * 0.5; // Much harder fusion
+                    
+                    if (similarity < 0.8 && Math.random() < adjustedFusionProb) {
                         return this.fuse(other);
                     } else if (false) {
                         // Removed automatic splitting
@@ -610,8 +615,8 @@
             }
 
             explode() {
-                // Only split if particle is big enough (density > 1.0)
-                if (this.density <= 1.0) return null;
+                // Only split if particle is big enough (density > 0.3)
+                if (this.density <= 0.3) return null;
                 
                 const angle = Math.random() * Math.PI * 2;
                 const distance = this.radius;
@@ -700,8 +705,12 @@
                 ];
                 const color = primaryColors[Math.floor(Math.random() * primaryColors.length)];
                 
+                // Much more varied densities: tiny to huge
+                const densities = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5];
+                const density = densities[Math.floor(Math.random() * densities.length)];
+                
                 this.particles.push(new Particle(x, y, {
-                    density: 0.5, // All particles same size
+                    density: density,
                     color: color
                 }));
             }
@@ -756,8 +765,8 @@
                     }
                 });
                 
-                // Check win condition - more lenient threshold
-                if (this.bestWhiteness > 0.85 && !this.gameWon) {
+                // Check win condition - very challenging threshold requiring many fusions
+                if (this.bestWhiteness > 0.95 && !this.gameWon) {
                     this.gameWon = true;
                     this.showVictory();
                     // Stop auto-play when winning
@@ -865,8 +874,12 @@
                 ];
                 const color = primaryColors[Math.floor(Math.random() * primaryColors.length)];
                 
+                // Much more varied densities for user-created particles too
+                const densities = [0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5];
+                const density = densities[Math.floor(Math.random() * densities.length)];
+                
                 this.particles.push(new Particle(x, y, {
-                    density: 0.5, // All particles same size
+                    density: density,
                     color: color
                 }));
             }
@@ -881,9 +894,9 @@
                     }
                 }
                 
-                // Randomly explode large particles
-                const largeParticles = this.particles.filter(p => p.density > 1.5);
-                if (largeParticles.length > 0 && Math.random() < 0.3) {
+                // Randomly explode medium to large particles (adapted to new scale)
+                const largeParticles = this.particles.filter(p => p.density > 0.4);
+                if (largeParticles.length > 0 && Math.random() < 0.2) {
                     const particle = largeParticles[Math.floor(Math.random() * largeParticles.length)];
                     const result = particle.explode();
                     if (result) {
