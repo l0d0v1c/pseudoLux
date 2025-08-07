@@ -268,6 +268,15 @@
             </div>
         </div>
     </div>
+    
+    <div style="position: absolute; top: 20px; left: 20px; color: white; text-align: center; font-size: 14px; font-weight: bold; z-index: 10;">
+        <div style="background: rgba(0, 0, 0, 0.7); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 10px; padding: 8px;">
+            <div id="whiteParticleCount">0</div>
+            <div style="font-size: 10px; opacity: 0.8;">BLANCHES</div>
+        </div>
+            </div>
+        </div>
+    </div>
 
     <div class="settings-icon" id="settingsIcon">⚙️</div>
     <div class="settings-panel" id="settingsPanel">
@@ -410,6 +419,10 @@
                 return balance * (0.5 + brightness * 0.5);
             }
 
+            isWhiteParticle() {
+                return this.getWhiteness() > 0.85; // Threshold for considering particle as "white"
+            }
+
             update(deltaTime, allParticles, gameWon = false) {
                 if (!this.isDragging) {
                     if (gameWon) {
@@ -452,9 +465,9 @@
                     this.vx *= 0.99;
                     this.vy *= 0.99;
                     
-                    // Gravitational attraction to bigger particles
+                    // Gravitational attraction to bigger particles (but not white ones)
                     allParticles.forEach(other => {
-                        if (other !== this && other.mass > this.mass) {
+                        if (other !== this && other.mass > this.mass && !other.isWhiteParticle()) {
                             const dx = other.x - this.x;
                             const dy = other.y - this.y;
                             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -469,17 +482,74 @@
                         }
                     });
                     
-                    this.oscillation += this.oscillationSpeed * speedMultiplier;
-                    this.vx += Math.sin(this.oscillation) * 0.01 * speedMultiplier;
-                    this.vy += Math.cos(this.oscillation * 1.3) * 0.01 * speedMultiplier;
+                    // Check for collisions with white particles (solid barrier effect)
+                    if (!this.isWhiteParticle()) {
+                        allParticles.forEach(whiteParticle => {
+                            if (whiteParticle !== this && whiteParticle.isWhiteParticle()) {
+                                const dx = this.x - whiteParticle.x;
+                                const dy = this.y - whiteParticle.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                const minDistance = this.radius + whiteParticle.radius;
+                                
+                                if (distance < minDistance && distance > 0) {
+                                    // Push colored particle away from white particle
+                                    const pushForce = (minDistance - distance) * 0.1;
+                                    this.vx += (dx / distance) * pushForce;
+                                    this.vy += (dy / distance) * pushForce;
+                                    
+                                    // Move particle to avoid overlap
+                                    const overlap = minDistance - distance;
+                                    this.x += (dx / distance) * overlap * 0.5;
+                                    this.y += (dy / distance) * overlap * 0.5;
+                                }
+                            }
+                        });
+                    }
+                    
+                    // White particles have reduced movement
+                    if (!this.isWhiteParticle()) {
+                        this.oscillation += this.oscillationSpeed * speedMultiplier;
+                        this.vx += Math.sin(this.oscillation) * 0.01 * speedMultiplier;
+                        this.vy += Math.cos(this.oscillation * 1.3) * 0.01 * speedMultiplier;
+                    } else {
+                        // White particles move very slowly with gentle random motion
+                        this.vx *= 0.98; // Less friction so they keep some movement
+                        this.vy *= 0.98;
+                        
+                        // Add very gentle random movement
+                        this.vx += (Math.random() - 0.5) * 0.002;
+                        this.vy += (Math.random() - 0.5) * 0.002;
+                        
+                        // Limit maximum speed for white particles
+                        const maxSpeed = 0.3;
+                        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                        if (speed > maxSpeed) {
+                            this.vx = (this.vx / speed) * maxSpeed;
+                            this.vy = (this.vy / speed) * maxSpeed;
+                        }
+                    }
                     
                     this.x += this.vx * speedMultiplier;
                     this.y += this.vy * speedMultiplier;
                     
-                    if (this.x < this.radius) { this.x = this.radius; this.vx *= -0.8; }
-                    if (this.x > canvas.width - this.radius) { this.x = canvas.width - this.radius; this.vx *= -0.8; }
-                    if (this.y < this.radius) { this.y = this.radius; this.vy *= -0.8; }
-                    if (this.y > canvas.height - this.radius) { this.y = canvas.height - this.radius; this.vy *= -0.8; }
+                    // Wall collision with stronger bounce for white particles to keep them in bounds
+                    const bounceStrength = this.isWhiteParticle() ? -0.9 : -0.8;
+                    if (this.x < this.radius) { 
+                        this.x = this.radius; 
+                        this.vx *= bounceStrength; 
+                    }
+                    if (this.x > canvas.width - this.radius) { 
+                        this.x = canvas.width - this.radius; 
+                        this.vx *= bounceStrength; 
+                    }
+                    if (this.y < this.radius) { 
+                        this.y = this.radius; 
+                        this.vy *= bounceStrength; 
+                    }
+                    if (this.y > canvas.height - this.radius) { 
+                        this.y = canvas.height - this.radius; 
+                        this.vy *= bounceStrength; 
+                    }
                 }
                 
                 this.energy = Math.max(0.5, this.energy - 0.00005);
@@ -487,8 +557,15 @@
             }
 
             draw(ctx) {
-                const currentRadius = this.radius * (0.8 + Math.sin(this.oscillation) * 0.2);
-                const glowIntensity = this.energy * 0.4 + 0.8; // Brighter glow
+                // White particles don't pulse - they have steady, intense glow
+                const currentRadius = this.isWhiteParticle() 
+                    ? this.radius 
+                    : this.radius * (0.8 + Math.sin(this.oscillation) * 0.2);
+                
+                // White particles are much more intense
+                const glowIntensity = this.isWhiteParticle() 
+                    ? 2.0  // Much brighter for white particles
+                    : this.energy * 0.4 + 0.8;
                 
                 ctx.save();
                 
@@ -520,12 +597,12 @@
                     ctx.stroke();
                 }
                 
-                // Show whiteness aura for particles above 70% white
+                // Show whiteness aura for particles above 70% white (but not for white particles)
                 const whiteness = this.getWhiteness();
-                if (whiteness > 0.7) {
+                if (!this.isWhiteParticle() && whiteness > 0.7) {
                     const auraIntensity = Math.min(1, (whiteness - 0.7) / 0.3);
                     
-                    // Outer glowing aura
+                    // Outer glowing aura for colored particles
                     ctx.shadowBlur = 20 * auraIntensity;
                     ctx.shadowColor = `rgba(255, 255, 255, ${auraIntensity * 0.8})`;
                     ctx.strokeStyle = `rgba(255, 255, 255, ${auraIntensity * 0.6})`;
@@ -537,8 +614,8 @@
                     // Reset shadow
                     ctx.shadowBlur = 0;
                     
-                    // Inner pulsing ring
-                    if (whiteness > 0.85) {
+                    // Inner pulsing ring for very white colored particles
+                    if (whiteness > 0.8) {
                         const pulseIntensity = 0.5 + Math.sin(this.oscillation * 3) * 0.3;
                         ctx.strokeStyle = `rgba(255, 255, 255, ${pulseIntensity * auraIntensity})`;
                         ctx.lineWidth = 2;
@@ -556,6 +633,11 @@
             }
 
             interactWith(other) {
+                // White particles cannot interact with anything
+                if (this.isWhiteParticle() || other.isWhiteParticle()) {
+                    return null;
+                }
+                
                 const distance = this.distanceTo(other);
                 const interactionRadius = this.radius + other.radius;
                 
@@ -615,6 +697,9 @@
             }
 
             explode() {
+                // White particles cannot be exploded
+                if (this.isWhiteParticle()) return null;
+                
                 // Only split if particle is big enough (density > 0.3)
                 if (this.density <= 0.3) return null;
                 
@@ -727,6 +812,20 @@
                 
                 this.particles.forEach(particle => particle.update(deltaTime, this.particles, this.gameWon));
                 
+                // Check if game should be won (no more colored particles)
+                const coloredParticles = this.particles.filter(p => !p.isWhiteParticle());
+                const whiteParticles = this.particles.filter(p => p.isWhiteParticle());
+                
+                // Win condition: at least one white particle AND no colored particles
+                if (!this.gameWon && whiteParticles.length > 0 && coloredParticles.length === 0) {
+                    this.gameWon = true;
+                    this.showVictory();
+                    // Stop auto-play when winning
+                    autoPlay = false;
+                    $('#autoPlayBtn').text('🤖 MODE AUTO');
+                    $('#autoPlayBtn').css('background', 'linear-gradient(45deg, #4CAF50, #45a049)');
+                }
+                
                 // Stop interactions and particle creation when game is won
                 if (!this.gameWon) {
                     for (let i = 0; i < this.particles.length; i++) {
@@ -738,11 +837,11 @@
                         }
                     }
                     
-                    // Check for whiteness and win condition
+                    // Check for whiteness tracking (for display and audio)
                     this.updateWhitenessTracking();
                     
-                    // Occasionally spawn new primary color particles
-                    if (Math.random() < 0.002 && this.particles.length < 15) {
+                    // Occasionally spawn new primary color particles (only if no white particles exist yet)
+                    if (whiteParticles.length === 0 && Math.random() < 0.002 && this.particles.length < 15) {
                         this.createPrimaryColorParticle();
                     }
                     
@@ -757,7 +856,9 @@
                 this.bestWhiteness = 0;
                 this.whitestParticle = null;
                 
-                this.particles.forEach(particle => {
+                // Only track non-white particles for gauge display
+                const coloredParticles = this.particles.filter(p => !p.isWhiteParticle());
+                coloredParticles.forEach(particle => {
                     const whiteness = particle.getWhiteness();
                     if (whiteness > this.bestWhiteness) {
                         this.bestWhiteness = whiteness;
@@ -765,38 +866,20 @@
                     }
                 });
                 
-                // Check win condition - very challenging threshold requiring many fusions
-                if (this.bestWhiteness > 0.95 && !this.gameWon) {
-                    this.gameWon = true;
-                    this.showVictory();
-                    // Stop auto-play when winning
-                    autoPlay = false;
-                    $('#autoPlayBtn').text('🤖 MODE AUTO');
-                    $('#autoPlayBtn').css('background', 'linear-gradient(45deg, #4CAF50, #45a049)');
-                }
+                // Keep the whitest colored particle for audio/visual feedback
+                // Don't override with white particles for gauge calculation
             }
 
             showVictory() {
                 document.getElementById('victoryPanel').style.display = 'block';
                 
-                // Immediately keep only the whitest particle
-                if (this.whitestParticle) {
-                    this.particles = [this.whitestParticle];
-                    
-                    // Don't force position to center - let it continue where it is
-                    this.whitestParticle.energy = 2.0;
-                    // Add some gentle random movement instead of centering
-                    this.whitestParticle.vx = (Math.random() - 0.5) * 0.5;
-                    this.whitestParticle.vy = (Math.random() - 0.5) * 0.5;
-                } else {
-                    // If no white particle found, create one at random position
-                    const x = canvas.width * (0.3 + Math.random() * 0.4);
-                    const y = canvas.height * (0.3 + Math.random() * 0.4);
-                    this.particles = [new Particle(x, y, {
-                        density: 2.0,
-                        color: { r: 255, g: 255, b: 255 }
-                    })];
-                }
+                // Keep only white particles - they continue moving normally
+                this.particles = this.particles.filter(p => p.isWhiteParticle());
+                
+                // Boost energy of all white particles for celebration effect
+                this.particles.forEach(particle => {
+                    particle.energy = 2.0;
+                });
             }
 
             resetGame() {
@@ -1153,13 +1236,18 @@
             particleSystem.update(deltaTime);
             particleSystem.draw(ctx);
 
+            // Display best whiteness percentage of colored particles in gauge
             const whiteProgress = Math.round(particleSystem.bestWhiteness * 100);
             document.getElementById('whiteProgress').textContent = `${whiteProgress}%`;
             
-            // Update audio based on whiteness
+            // Display white particle count separately
+            const whiteParticleCount = particleSystem.particles.filter(p => p.isWhiteParticle()).length;
+            document.getElementById('whiteParticleCount').textContent = whiteParticleCount;
+            
+            // Update audio based on best whiteness of colored particles
             updateAudioForWhiteness(particleSystem.bestWhiteness);
             
-            // Update gauge color based on progress
+            // Update gauge color based on progress of best colored particle
             const gaugeCircle = document.querySelector('.gauge-circle');
             if (whiteProgress > 90) {
                 gaugeCircle.style.background = 'conic-gradient(from 0deg, #ffffff 0%, #ffffff 100%)';
