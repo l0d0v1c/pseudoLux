@@ -5,6 +5,7 @@ Un jeu interactif de fusion de particules colorées pour créer de la lumière b
 ## 🎮 Démo
 
 Jouez en ligne : [https://l0d0v1c.github.io/pseudoLux/](https://l0d0v1c.github.io/pseudoLux/)
+[![Watch the video](cover.jpg)](demo.mp4)
 
 ## 🎯 Objectif
 
