@@ -354,7 +354,7 @@
                 this.charge = options.charge || (Math.random() - 0.5) * 2;
                 this.potential = options.potential || Math.random();
                 
-                this.radius = this.density * 30 + 10; // All start at radius 25
+                this.radius = this.density * 60 + 20; // Bigger particles: density 0.1 = 26px, 0.5 = 50px
                 this.mass = this.density * this.radius;
                 
                 // RGB color system instead of HSL
@@ -420,7 +420,7 @@
                         
                         // Rapidly grow in victory mode
                         this.density += 0.01;
-                        this.radius = this.density * 30 + 10;
+                        this.radius = this.density * 60 + 20;
                         this.mass = this.density * this.radius;
                         
                         // Limit velocity for smooth movement
@@ -670,7 +670,7 @@
                 this.density = Math.max(0.1, Math.min(1, this.density));
                 this.charge = Math.max(-2, Math.min(2, this.charge));
                 
-                this.radius = this.density * 30 + 10;
+                this.radius = this.density * 60 + 20;
                 this.energy = Math.min(1, this.energy + 0.1);
             }
 
